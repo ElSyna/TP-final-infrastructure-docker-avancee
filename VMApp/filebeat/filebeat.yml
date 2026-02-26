@@ -1,0 +1,60 @@
+filebeat.inputs:
+  - type: log
+    id: traefik-access
+    enabled: true
+    paths:
+      - /var/log/services/traefik/access.log
+    fields:
+      service: traefik
+      log_type: access
+    fields_under_root: false
+
+  - type: log
+    id: traefik-app
+    enabled: true
+    paths:
+      - /var/log/services/traefik/traefik.log
+    fields:
+      service: traefik
+      log_type: application
+    fields_under_root: false
+
+  - type: log
+    id: wordpress
+    enabled: true
+    paths:
+      - /var/log/services/wordpress/*.log
+    fields:
+      service: wordpress
+      log_type: apache
+    fields_under_root: false
+
+  - type: log
+    id: keycloak
+    enabled: true
+    paths:
+      - /var/log/services/keycloak/*.log
+    fields:
+      service: keycloak
+      log_type: application
+    fields_under_root: false
+
+  - type: log
+    id: mariadb
+    enabled: true
+    paths:
+      - /var/log/services/db/*.log
+    fields:
+      service: mariadb
+      log_type: database
+    fields_under_root: false
+
+output.logstash:
+  hosts: ["logstash.tp.local:5044"]
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /usr/share/filebeat/data/logs
+  name: filebeat
+  keepfiles: 3

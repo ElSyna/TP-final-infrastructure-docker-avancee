@@ -130,11 +130,26 @@ services:
       - traefik.http.services.keycloak.loadbalancer.server.port=8080
     networks:
       - app-network
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.17.0
+    container_name: filebeat
+    restart: unless-stopped
+    entrypoint: ["filebeat", "-e", "--strict.perms=false"]
+    user: root
+    extra_hosts:
+      - "logstash.tp.local:192.168.5.2"
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./logs:/var/log/services:ro
+      - filebeat-data:/usr/share/filebeat/data
+    networks:
+      - app-network
 
 volumes:
   db-data:
   wp-data:
   kc-data:
+  filebeat-data:
 
 networks:
   app-network:
