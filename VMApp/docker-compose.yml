@@ -100,9 +100,41 @@ services:
     networks:
       - app-network
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: keycloak
+    restart: unless-stopped
+    command: start-dev
+    depends_on:
+      - db
+    environment:
+      KC_DB: mariadb
+      KC_DB_URL: jdbc:mariadb://db:3306/${KC_DB_NAME}
+      KC_DB_USERNAME: ${MYSQL_USER}
+      KC_DB_PASSWORD: ${MYSQL_PASSWORD}
+      KEYCLOAK_ADMIN: ${KC_ADMIN_USER}
+      KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_LOG: file
+      KC_LOG_FILE: /opt/keycloak/data/log/keycloak.log
+    volumes:
+      - kc-data:/opt/keycloak/data
+      - ./logs/keycloak:/opt/keycloak/data/log
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.keycloak.rule=Host(`keycloak.tp.local`)
+      - traefik.http.routers.keycloak.entrypoints=websecure
+      - traefik.http.routers.keycloak.tls=true
+      - traefik.http.services.keycloak.loadbalancer.server.port=8080
+    networks:
+      - app-network
+
 volumes:
   db-data:
   wp-data:
+  kc-data:
 
 networks:
   app-network:
