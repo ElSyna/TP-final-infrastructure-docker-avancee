@@ -1,0 +1,13 @@
+.env
+!.env-example
+*.key
+*.csr
+*.srl
+san.cnf
+VMApp/certs/server.*
+VMLogging/certs/
+VMMonitoring/certs/
+logs/
+data/
+.DS_Store
+._*
