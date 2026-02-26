@@ -35,6 +35,15 @@ services:
     image: louislam/uptime-kuma:1
     container_name: uptime-kuma
     restart: unless-stopped
+    extra_hosts:
+      - "wordpress.tp.local:192.168.5.2"
+      - "pma.tp.local:192.168.5.2"
+      - "keycloak.tp.local:192.168.5.2"
+      - "traefik-app.tp.local:192.168.5.2"
+      - "kibana.tp.local:192.168.5.2"
+      - "traefik-logging.tp.local:192.168.5.2"
+      - "uptime.tp.local:192.168.5.2"
+      - "traefik-monitoring.tp.local:192.168.5.2"
     volumes:
       - uptime-data:/app/data
       - /opt/tp-certs/ca.crt:/etc/ssl/certs/tp-ca.crt:ro
