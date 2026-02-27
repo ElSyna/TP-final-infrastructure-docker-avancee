@@ -7,3 +7,19 @@ tls:
       defaultCertificate:
         certFile: /certs/server.crt
         keyFile: /certs/server.key
+
+http:
+  middlewares:
+    security-headers:
+      headers:
+        browserXssFilter: true
+        contentTypeNosniff: true
+        frameDeny: true
+        stsIncludeSubdomains: true
+        stsSeconds: 31536000
+        customFrameOptionsValue: "SAMEORIGIN"
+        referrerPolicy: "strict-origin-when-cross-origin"
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 200
