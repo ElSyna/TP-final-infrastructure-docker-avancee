@@ -1,13 +1,16 @@
+# Environment files with real credentials
 .env
 !.env-example
-*.key
-*.csr
-*.srl
-san.cnf
-VMApp/certs/server.*
-VMLogging/certs/
-VMMonitoring/certs/
+
+# TLS private keys
+certs/ca.key
+certs/server.key
+certs/server.csr
+certs/ca.srl
+certs/san.cnf
+
+# Logs
 logs/
+
+# Docker volumes data
 data/
-.DS_Store
-._*
