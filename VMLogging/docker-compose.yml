@@ -4,7 +4,7 @@ services:
     container_name: traefik
     restart: unless-stopped
     environment:
-      - DOCKER_API_VERSION=1.45
+      DOCKER_API_VERSION: "1.45"
     command:
       - --api.dashboard=true
       - --providers.docker=true
@@ -15,6 +15,9 @@ services:
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --providers.file.filename=/etc/traefik/dynamic.yml
       - --log.level=INFO
+      - --ping=true
+      - --entrypoints.ping.address=:8082
+      - --ping.entryPoint=ping
     ports:
       - "8080:8080"
       - "8443:8443"
@@ -28,6 +31,23 @@ services:
       - traefik.http.routers.dashboard.entrypoints=websecure
       - traefik.http.routers.dashboard.tls=true
       - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.middlewares=security-headers@file,rate-limit@file
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/ping || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    mem_limit: 256m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - logging-network
 
@@ -37,8 +57,9 @@ services:
     restart: unless-stopped
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false
+      - xpack.security.enabled=true
       - xpack.security.enrollment.enabled=false
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - cluster.name=tp-logging
     volumes:
@@ -47,6 +68,21 @@ services:
       memlock:
         soft: -1
         hard: -1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -u ${ELASTIC_USERNAME}:${ELASTIC_PASSWORD} http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    mem_limit: 1g
+    cpus: 1.5
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - logging-network
 
@@ -56,13 +92,25 @@ services:
     restart: unless-stopped
     environment:
       - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
+      - ELASTICSEARCH_USERNAME=${ELASTIC_USERNAME}
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
     volumes:
       - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
       - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
     ports:
       - "5044:5044"
     depends_on:
-      - elasticsearch
+      elasticsearch:
+        condition: service_healthy
+    mem_limit: 512m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - logging-network
 
@@ -72,15 +120,34 @@ services:
     restart: unless-stopped
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=${KIBANA_USERNAME}
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
       - SERVER_NAME=kibana.tp.local
     depends_on:
-      - elasticsearch
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -u ${ELASTIC_USERNAME}:${ELASTIC_PASSWORD} http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     labels:
       - traefik.enable=true
       - traefik.http.routers.kibana.rule=Host(`kibana.tp.local`)
       - traefik.http.routers.kibana.entrypoints=websecure
       - traefik.http.routers.kibana.tls=true
+      - traefik.http.routers.kibana.middlewares=security-headers@file,rate-limit@file
       - traefik.http.services.kibana.loadbalancer.server.port=5601
+    mem_limit: 1g
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - logging-network
 
