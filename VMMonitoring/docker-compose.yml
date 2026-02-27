@@ -4,7 +4,7 @@ services:
     container_name: traefik
     restart: unless-stopped
     environment:
-      - DOCKER_API_VERSION=1.45
+      DOCKER_API_VERSION: "1.45"
     command:
       - --api.dashboard=true
       - --providers.docker=true
@@ -15,6 +15,9 @@ services:
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --providers.file.filename=/etc/traefik/dynamic.yml
       - --log.level=INFO
+      - --ping=true
+      - --entrypoints.ping.address=:8082
+      - --ping.entryPoint=ping
     ports:
       - "9080:9080"
       - "9443:9443"
@@ -28,6 +31,23 @@ services:
       - traefik.http.routers.dashboard.entrypoints=websecure
       - traefik.http.routers.dashboard.tls=true
       - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.middlewares=security-headers@file,rate-limit@file
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/ping || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    mem_limit: 256m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - monitoring-network
 
@@ -36,23 +56,38 @@ services:
     container_name: uptime-kuma
     restart: unless-stopped
     extra_hosts:
-      - "wordpress.tp.local:192.168.5.2"
-      - "pma.tp.local:192.168.5.2"
-      - "keycloak.tp.local:192.168.5.2"
-      - "traefik-app.tp.local:192.168.5.2"
-      - "kibana.tp.local:192.168.5.2"
-      - "traefik-logging.tp.local:192.168.5.2"
-      - "uptime.tp.local:192.168.5.2"
-      - "traefik-monitoring.tp.local:192.168.5.2"
+      - "uptime.tp.local:host-gateway"
+      - "traefik-monitoring.tp.local:host-gateway"
     volumes:
       - uptime-data:/app/data
       - /opt/tp-certs/ca.crt:/etc/ssl/certs/tp-ca.crt:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3001 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     labels:
       - traefik.enable=true
       - traefik.http.routers.uptime.rule=Host(`uptime.tp.local`)
       - traefik.http.routers.uptime.entrypoints=websecure
       - traefik.http.routers.uptime.tls=true
+      - traefik.http.routers.uptime.middlewares=security-headers@file,rate-limit@file
       - traefik.http.services.uptime.loadbalancer.server.port=3001
+    mem_limit: 256m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - monitoring-network
 
