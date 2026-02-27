@@ -1,6 +1,6 @@
 services:
   traefik:
-    image: traefik:latest
+    image: traefik:v3.6
     container_name: traefik
     restart: unless-stopped
     environment:
@@ -77,7 +77,7 @@ services:
       - elasticsearch
     labels:
       - traefik.enable=true
-      - traefik.http.routers.kibana.rule=Host(\`kibana.tp.local\`)
+      - traefik.http.routers.kibana.rule=Host(`kibana.tp.local`)
       - traefik.http.routers.kibana.entrypoints=websecure
       - traefik.http.routers.kibana.tls=true
       - traefik.http.services.kibana.loadbalancer.server.port=5601

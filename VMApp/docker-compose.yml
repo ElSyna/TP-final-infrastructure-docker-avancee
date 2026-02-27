@@ -1,8 +1,10 @@
 services:
   traefik:
-    image: traefik:v3.3
+    image: traefik:v3.6
     container_name: traefik
     restart: unless-stopped
+    environment:
+      - DOCKER_API_VERSION=1.45
     command:
       - --api.dashboard=true
       - --providers.docker=true
@@ -34,7 +36,7 @@ services:
       - app-network
 
   db:
-    image: mariadb:11
+    image: mariadb:11.7
     container_name: db
     restart: unless-stopped
     environment:
@@ -54,7 +56,7 @@ services:
       - app-network
 
   wordpress:
-    image: wordpress:6-apache
+    image: wordpress:6.7-apache
     container_name: wordpress
     restart: unless-stopped
     depends_on:
@@ -81,7 +83,7 @@ services:
       - app-network
 
   phpmyadmin:
-    image: phpmyadmin:5
+    image: phpmyadmin:5.2-apache
     container_name: phpmyadmin
     restart: unless-stopped
     depends_on:
@@ -130,6 +132,7 @@ services:
       - traefik.http.services.keycloak.loadbalancer.server.port=8080
     networks:
       - app-network
+
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.17.0
     container_name: filebeat
