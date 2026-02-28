@@ -1,0 +1,131 @@
+services:
+  mariadb-wp:
+    image: mariadb:11
+    container_name: mariadb-wp
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${WP_DB_NAME}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+      - ../logs/mariadb-wp:/var/log/mysql
+    command: >
+      --general-log=1
+      --general-log-file=/var/log/mysql/general.log
+      --log-error=/var/log/mysql/error.log
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    mem_limit: 512m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - wp-internal
+
+  wordpress:
+    image: wordpress:6-apache
+    container_name: wordpress
+    restart: unless-stopped
+    depends_on:
+      mariadb-wp:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: mariadb-wp
+      WORDPRESS_DB_NAME: ${WP_DB_NAME}
+      WORDPRESS_DB_USER: ${MYSQL_USER}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - wp-data:/var/www/html
+      - ../logs/wordpress:/var/log/apache2
+      - ../certs/ca.crt:/usr/local/share/ca-certificates/tp-ca.crt:ro
+    entrypoint: ["/bin/bash", "-c", "update-ca-certificates && docker-entrypoint.sh apache2-foreground"]
+    extra_hosts:
+      - "keycloak.tp.local:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.wordpress.rule=Host(`wordpress.tp.local`)
+      - traefik.http.routers.wordpress.entrypoints=websecure
+      - traefik.http.routers.wordpress.tls=true
+      - traefik.http.routers.wordpress.middlewares=security-headers@file,rate-limit@file
+      - traefik.http.services.wordpress.loadbalancer.server.port=80
+      - traefik.docker.network=proxy
+    mem_limit: 512m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - proxy
+      - wp-internal
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      mariadb-wp:
+        condition: service_healthy
+    environment:
+      PMA_HOST: mariadb-wp
+      PMA_PORT: 3306
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pma.rule=Host(`pma.tp.local`)
+      - traefik.http.routers.pma.entrypoints=websecure
+      - traefik.http.routers.pma.tls=true
+      - traefik.http.routers.pma.middlewares=pma-auth,security-headers@file,rate-limit@file
+      - traefik.http.middlewares.pma-auth.basicauth.users=${PMA_BASIC_AUTH}
+      - traefik.http.services.pma.loadbalancer.server.port=80
+      - traefik.docker.network=proxy
+    mem_limit: 256m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - CHOWN
+      - FOWNER
+      - DAC_OVERRIDE
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - proxy
+      - wp-internal
+
+volumes:
+  db-data:
+  wp-data:
+
+networks:
+  proxy:
+    external: true
+  wp-internal:
+    driver: bridge
+    internal: true
