@@ -16,7 +16,8 @@ cp /opt/tp-certs/server.key ./certs/
 # Create log directories
 echo "[2/5] Creating log directories..."
 mkdir -p logs/{traefik,wordpress,keycloak,mariadb-wp,mariadb-kc}
-chmod -R 750 logs/
+chmod 750 logs/
+chmod 777 logs/mariadb-wp logs/mariadb-kc
 
 # Create external network
 echo "[3/5] Creating proxy network..."
