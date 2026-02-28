@@ -1,0 +1,62 @@
+services:
+  traefik:
+    image: traefik:v3.6
+    container_name: traefik
+    restart: unless-stopped
+    environment:
+      DOCKER_API_VERSION: "1.45"
+    command:
+      - --api.dashboard=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=proxy
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --accesslog=true
+      - --accesslog.filepath=/var/log/traefik/access.log
+      - --log.filepath=/var/log/traefik/traefik.log
+      - --log.level=INFO
+      - --ping=true
+      - --entrypoints.ping.address=:8082
+      - --ping.entryPoint=ping
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ../certs:/certs:ro
+      - ../logs/traefik:/var/log/traefik
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dashboard.rule=Host(`traefik-app.tp.local`)
+      - traefik.http.routers.dashboard.entrypoints=websecure
+      - traefik.http.routers.dashboard.tls=true
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.middlewares=security-headers@file,rate-limit@file
+      - traefik.docker.network=proxy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/ping || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    mem_limit: 256m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
