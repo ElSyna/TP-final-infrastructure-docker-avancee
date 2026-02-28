@@ -1,0 +1,29 @@
+services:
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.17.0
+    container_name: filebeat
+    restart: unless-stopped
+    user: root
+    entrypoint: ["filebeat", "-e", "--strict.perms=false"]
+    extra_hosts:
+      - "logstash.tp.local:192.168.5.2"
+    volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ../logs:/var/log/services:ro
+      - filebeat-data:/usr/share/filebeat/data
+    mem_limit: 256m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_READ_SEARCH
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  filebeat-data:

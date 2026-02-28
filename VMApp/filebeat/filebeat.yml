@@ -40,12 +40,22 @@ filebeat.inputs:
     fields_under_root: false
 
   - type: log
-    id: mariadb
+    id: mariadb-wp
     enabled: true
     paths:
-      - /var/log/services/db/*.log
+      - /var/log/services/mariadb-wp/*.log
     fields:
-      service: mariadb
+      service: mariadb-wp
+      log_type: database
+    fields_under_root: false
+
+  - type: log
+    id: mariadb-kc
+    enabled: true
+    paths:
+      - /var/log/services/mariadb-kc/*.log
+    fields:
+      service: mariadb-kc
       log_type: database
     fields_under_root: false
 
